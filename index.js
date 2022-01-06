@@ -13,21 +13,27 @@ const server = app.listen(PORT, function () {
 // Static files
 app.use(express.static("public"));
 
-const peer = new RTCPeerConnection()
-
 // Socket setup
 const io = socket(server);
 
 io.on("connection", function (socket) {
-    socket.emit('connection::ok', socket.id, io.sockets.server.httpServer._connections === 1 ? true : false);
-    socket.broadcast.emit('is::new', socket.id, io.sockets.server.httpServer._connections)
-    io.emit('log', io.sockets.server.httpServer._connections)
+    console.log('Socket Joined : ', socket.id)
+    socket.emit('connection::ok', socket.id, io.sockets.server.httpServer._connections);
+    socket.broadcast.emit('is::new', socket.id)
 
     socket.on('SDP', ({ to, data }) => {
         to ? io.to(to).emit('SDP', { from: socket.id, data }) : socket.emit('error', 'You are alone nobody to connect to.');
     })
 
-    socket.on('CANDIDATE', ({ to, data }) => {
-        to ? io.to(to).emit('CANDIDATE', { from: socket.id, data }) : socket.emit('error', 'You are alone nobody to connect to.');
+    socket.on('SEND::CANDIDATE', ({ to, data }) => {
+        to && io.to(to).emit('CANDIDATE', { from: socket.id, data })
+    })
+
+    socket.on('RECV::CANDIDATE', ({ to, data }) => {
+        to && io.to(to).emit('CANDIDATE', { from: socket.id, data, type: 'recv' })
+    })
+
+    socket.on('disconnect', () => {
+        console.log('Socket Left : ', socket.id)
     })
 });
